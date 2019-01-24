@@ -102,10 +102,14 @@ class pyCCT(Master):
     RESOURCE_DAQ_MASK = 2
     RESOURCE_PGM_MASK = 0x40
 
-    def __init__(self, tp, croCanId=0x301, crmCanID=0x302, stationAddr=0x020a, seedKeyFunc=None, buildCrcFunc=None):
+    DATA_ENDIAN_LITTLE = 0
+    DATA_ENDIAN_BIG = 1
+
+    def __init__(self, tp, croCanId=0x301, crmCanID=0x302, stationAddr=0x020a, seedKeyFunc=None, buildCrcFunc=None, endiad=DATA_ENDIAN_LITTLE):
         Master.__init__(self, tp)
         self.croCanId = croCanId
         self.crmCanID = crmCanID
+        self.endiad = endiad
         self.stationAddr = stationAddr
         if seedKeyFunc == None:
             self.seedKeyFunc = self.calcKey
@@ -121,29 +125,37 @@ class pyCCT(Master):
         self.lastResData = self.getResponse()
         _,_,self.resMask, self.resProtmask, _ = self.lastResData
         retCnt = 0
-        while(self.resMask & pyCCT.RESOURCE_CAL_MASK):
+        print(self.resProtmask)
+        while(self.resProtmask & pyCCT.RESOURCE_CAL_MASK):
             self.getSeed(self.croCanId, pyCCT.RESOURCE_CAL_MASK)
             self.lastResData = self.getResponse()
             protSts, *seed = self.lastResData
             self.unlock(self.croCanId, self.calcKey(seed))
-            self.resMask, *_ = self.lastResData
+            self.lastResData = self.getResponse()
+            Mask, *_ = self.lastResData
+            self.resProtmask = self.resProtmask&(~pyCCT.RESOURCE_CAL_MASK)
             retCnt += 1
             if retCnt > 10:
                 raise Exception("Unlock resource failed for more than 10 times.")
         retCnt = 0
-        while (self.resMask & pyCCT.RESOURCE_DAQ_MASK):
+        print(self.resProtmask)
+        while (self.resProtmask & pyCCT.RESOURCE_DAQ_MASK):
             self.getSeed(self.croCanId, pyCCT.RESOURCE_DAQ_MASK)
             self.lastResData = self.getResponse()
             protSts, *seed = self.lastResData
             self.unlock(self.croCanId, self.calcKey(seed))
-            self.resMask, *_ = self.lastResData
+            self.lastResData = self.getResponse()
+            Mask, *_ = self.lastResData
+            self.resProtmask = self.resProtmask & (~pyCCT.RESOURCE_DAQ_MASK)
             retCnt += 1
             if retCnt > 10:
                 raise Exception("Unlock resource failed for more than 10 times.")
 
 
+
     def getResponse(self):
         self.lastRecMsg = self.transport.receive(self.crmCanID, 50)
+        print(self.lastRecMsg)
         if self.lastRecMsg == None:
             raise Exception("No response received from ECU.")
         pacId, retCode, ctr, *data_ = self.lastRecMsg.data

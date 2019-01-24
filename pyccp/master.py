@@ -48,6 +48,9 @@ class Master(ccp.CRO):
         """Transfer up to 6 data bytes from master to slave (ECU).
         """
         self.transport.send(canID, cmd, ctr, b0, b1, b2, b3, b4, b5)
+        self.ctr += 1
+        if self.ctr > 255:
+            self.ctr = 0
 
     ##
     ## Mandatory Commands.
@@ -92,6 +95,18 @@ class Master(ccp.CRO):
         address = struct.pack("<H", address)
         self.sendCRO(canID, ccp.CommandCodes.DISCONNECT, self.ctr, permanent, 0x00, *address)
 
+
+    def getSeed(self, canID, resMask):
+        self.sendCRO(canID, ccp.CommandCodes.GET_SEED, self.ctr, resMask)
+
+    def unlock(self, canID, key):
+        self.sendCRO(canID, ccp.CommandCodes.UNLOCK, self.ctr, key)
+
+    def getActiveCalPage(self, canID):
+        self.sendCRO(canID, ccp.CommandCodes.GET_ACTIVE_CAL_PAGE, self.ctr)
+
+    def selectCalPage(self, canID):
+        self.sendCRO(canID, ccp.CommandCodes.SELECT_CAL_PAGE, self.ctr)
     ##
     ## Optional Commands.
     ##
@@ -128,15 +143,4 @@ class Master(ccp.CRO):
     def move(self, canID):
         pass
 
-    def getActiveCalPage(self, canID):
-        pass
-
-    def selectCalPage(self, canID):
-        pass
-
-    def unlock(self, canID):
-        pass
-
-    def getSeed(self, canID):
-        pass
 
